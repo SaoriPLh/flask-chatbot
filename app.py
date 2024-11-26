@@ -5,22 +5,23 @@ from twilio.twiml.messaging_response import MessagingResponse
 from flask_caching import Cache
 from datetime import datetime
 import ubicaciones  # Importar funciones de ubicaciones.py
-from dotenv import load_dotenv
 import os
 import asyncio
 
 # Cargar las variables desde el archivo .env
-load_dotenv()
+# (Esto ya no es necesario si usas secretos en Render)
+# load_dotenv()
 
 # Verifica que las variables críticas estén cargadas
-if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_URL"):
-    raise ValueError("Las variables de entorno necesarias no están configuradas.")
+# (Esto ya no es necesario si usas secretos en Render)
+# if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_URL"):
+#     raise ValueError("Las variables de entorno necesarias no están configuradas.")
 
-# Obtener las claves desde las variables de entorno
-CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Esto debería ser la ruta correcta de Render
-DATABASE_URL = os.getenv("DATABASE_URL")
+# En lugar de obtener la variable desde el .env, ahora obtienes el archivo desde /etc/secrets/
+CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"
+DATABASE_URL = os.getenv("DATABASE_URL")  # Esta sigue siendo una variable de entorno si la usas
 
-# Inicializa Firebase con las credenciales desde las variables de entorno
+# Inicializa Firebase con las credenciales desde el archivo secreto en Render
 cred = credentials.Certificate(CREDENTIALS_PATH)
 firebase_admin.initialize_app(cred, {"databaseURL": DATABASE_URL})
 
