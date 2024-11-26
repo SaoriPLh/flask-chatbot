@@ -8,18 +8,14 @@ import ubicaciones  # Importar funciones de ubicaciones.py
 import os
 import asyncio
 
-# Cargar las variables desde el archivo .env
-# (Esto ya no es necesario si usas secretos en Render)
-# load_dotenv()
-
 # Verifica que las variables críticas estén cargadas
 # (Esto ya no es necesario si usas secretos en Render)
-# if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_URL"):
-#     raise ValueError("Las variables de entorno necesarias no están configuradas.")
+# Cargar las variables de entorno (Render ya las gestiona)
+# No es necesario load_dotenv() si estás usando secretos en Render
 
-# En lugar de obtener la variable desde el .env, ahora obtienes el archivo desde /etc/secrets/
-CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"
-DATABASE_URL = os.getenv("DATABASE_URL")  # Esta sigue siendo una variable de entorno si la usas
+# Obtener la ruta del archivo secreto desde las variables de entorno en Render
+CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"  # Ruta fija en Render para secretos
+DATABASE_URL = os.getenv("DATABASE_URL")  # Se obtiene la URL de la base de datos desde una variable de entorno
 
 # Inicializa Firebase con las credenciales desde el archivo secreto en Render
 cred = credentials.Certificate(CREDENTIALS_PATH)
