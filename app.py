@@ -1,10 +1,23 @@
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from firebase_config import db
+from flask_caching import Cache
 from datetime import datetime
 import ubicaciones  # Importar funciones de ubicaciones.py
+from dotenv import load_dotenv
+import os
+import asyncio
+
+# Cargar las variables desde el archivo .env
+load_dotenv()
+
+# Verifica que las variables críticas estén cargadas
+if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_URL"):
+    raise ValueError("Las variables de entorno necesarias no están configuradas.")
 
 app = Flask(__name__)
+app.config['CACHE_TYPE'] = 'SimpleCache'
+cache = Cache(app)
 
 # Diccionario temporal para almacenar pedidos
 pedidos = {}
@@ -14,9 +27,17 @@ def es_respuesta_afirmativa(respuesta):
     afirmativas = ["sí", "si", "sí es correcto", "si es correcto", "correcto", "claro", "ok"]
     return respuesta.lower() in afirmativas
 
+# Función para manejar errores al escribir en Firebase
+async def guardar_en_firebase_async(clave_pedido, datos):
+    try:
+        await asyncio.to_thread(db.reference(f"pedidos/{clave_pedido}").set, datos)
+        print(f"Pedido guardado exitosamente: {clave_pedido}")
+    except Exception as e:
+        print(f"Error guardando en Firebase: {e}")
+
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp_bot():
-    incoming_msg = request.form.get('Body').strip()
+    incoming_msg = request.form.get('Body').strip().lower()
     from_number = request.form.get('From')
     response = MessagingResponse()
     msg = response.message()
@@ -26,7 +47,7 @@ def whatsapp_bot():
 
     # Si es un nuevo cliente
     if from_number not in pedidos:
-        pedidos[from_number] = {"estado": "esperando_pedido"}
+        pedidos[from_number] = {"estado": "esperando_pedido"}  # Inicializa el pedido
         msg.body("¡Hola! Bienvenido a Henry's Pizzas. ¿Qué pizza deseas ordenar?\n"
                  "1. Pizza Hawaiana\n"
                  "2. Pizza Pepperoni\n"
@@ -56,26 +77,27 @@ def whatsapp_bot():
 
         elif estado == "esperando_direccion":
             direccion = incoming_msg
-            try:
-                coordenadas = ubicaciones.geocodificar_direccion(direccion)
+            coordenadas = cache.get(direccion)
 
+            if not coordenadas:
+                coordenadas = ubicaciones.geocodificar_direccion(direccion)
                 if coordenadas:
-                    lat, lng = coordenadas
-                    sucursal = ubicaciones.asignar_sucursal(lat, lng)
-                    if sucursal:
-                        pedidos[from_number]["direccion"] = direccion
-                        pedidos[from_number]["sucursal"] = sucursal
-                        pedidos[from_number]["estado"] = "esperando_referencias"
-                        msg.body(f"Tu dirección pertenece a {sucursal}.\n"
-                                 "Si deseas, agrega referencias adicionales para facilitar la entrega (ejemplo: 'junto a la tienda X').\n"
-                                 "Si no tienes referencias, escribe 'Sin referencias'.")
-                    else:
-                        msg.body("Lo siento, no encontramos una sucursal que atienda esa ubicación. Por favor verifica la dirección.")
+                    cache.set(direccion, coordenadas)
+
+            if coordenadas:
+                lat, lng = coordenadas
+                sucursal = ubicaciones.asignar_sucursal(lat, lng)
+                if sucursal:
+                    pedidos[from_number]["direccion"] = direccion
+                    pedidos[from_number]["sucursal"] = sucursal
+                    pedidos[from_number]["estado"] = "esperando_referencias"
+                    msg.body(f"Tu dirección pertenece a {sucursal}.\n"
+                             "Si deseas, agrega referencias adicionales para facilitar la entrega (ejemplo: 'junto a la tienda X').\n"
+                             "Si no tienes referencias, escribe 'Sin referencias'.")
                 else:
-                    msg.body("No pude encontrar tu dirección en el mapa. Por favor verifica e ingrésala nuevamente (incluye municipio).")
-            except Exception as e:
-                print(f"Error procesando la dirección: {e}")
-                msg.body("Hubo un error al procesar tu dirección. Por favor intenta nuevamente.")
+                    msg.body("Lo siento, no encontramos una sucursal que atienda esa ubicación. Por favor verifica la dirección.")
+            else:
+                msg.body("No pude encontrar tu dirección en el mapa. Por favor verifica e ingrésala nuevamente (incluye municipio).")
 
         elif estado == "esperando_referencias":
             referencias = incoming_msg
@@ -90,14 +112,13 @@ def whatsapp_bot():
 
         elif estado == "confirmacion":
             if es_respuesta_afirmativa(incoming_msg):
-                # Guardar en Firebase
-                try:
-                    db.reference(f"pedidos/{clave_pedido}").set(pedidos[from_number])
-                    msg.body("¡Gracias! Tu pedido ha sido confirmado y será preparado pronto. 😊")
-                    del pedidos[from_number]  # Limpiar el estado
-                except Exception as e:
-                    print(f"Error guardando en Firebase: {e}")
-                    msg.body("Hubo un problema al guardar tu pedido. Por favor intenta nuevamente.")
+                msg.body("¡Gracias! Tu pedido ha sido confirmado y será preparado pronto. 😊")
+                
+                # Ejecutar escritura asincrónica en Firebase
+                asyncio.run(guardar_en_firebase_async(clave_pedido, pedidos[from_number]))
+                
+                # Limpia el estado del pedido
+                del pedidos[from_number]
             else:
                 pedidos[from_number]["estado"] = "esperando_direccion"
                 msg.body("Por favor, indícanos nuevamente tu dirección.")
@@ -105,4 +126,4 @@ def whatsapp_bot():
     return str(response)
 
 if __name__ == '__main__':
-    app.run(debug=True)  
+    app.run(debug=True)
