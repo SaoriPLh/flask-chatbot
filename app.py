@@ -1,6 +1,7 @@
+import firebase_admin
+from firebase_admin import credentials, db
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-from firebase_config import db
 from flask_caching import Cache
 from datetime import datetime
 import ubicaciones  # Importar funciones de ubicaciones.py
@@ -14,6 +15,14 @@ load_dotenv()
 # Verifica que las variables críticas estén cargadas
 if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_URL"):
     raise ValueError("Las variables de entorno necesarias no están configuradas.")
+
+# Obtener las claves desde las variables de entorno
+CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Inicializa Firebase con las credenciales desde las variables de entorno
+cred = credentials.Certificate(CREDENTIALS_PATH)
+firebase_admin.initialize_app(cred, {"databaseURL": DATABASE_URL})
 
 app = Flask(__name__)
 app.config['CACHE_TYPE'] = 'SimpleCache'
