@@ -17,7 +17,7 @@ if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or not os.getenv("DATABASE_UR
     raise ValueError("Las variables de entorno necesarias no están configuradas.")
 
 # Obtener las claves desde las variables de entorno
-CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Esto debería ser la ruta correcta de Render
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Inicializa Firebase con las credenciales desde las variables de entorno

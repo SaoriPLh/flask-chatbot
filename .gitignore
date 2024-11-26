@@ -1,5 +1,5 @@
 firebase_config.py
-ubicaciones.py
+
 .env
 *.json
 __pycache__/
