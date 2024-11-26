@@ -8,16 +8,13 @@ import ubicaciones  # Importar funciones de ubicaciones.py
 import os
 import asyncio
 
-# Verifica que las variables críticas estén cargadas
-# (Esto ya no es necesario si usas secretos en Render)
-# Cargar las variables de entorno (Render ya las gestiona)
-# No es necesario load_dotenv() si estás usando secretos en Render
+# Ruta al archivo secreto en Render
+CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"
 
-# Obtener la ruta del archivo secreto desde las variables de entorno en Render
-CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"  # Ruta fija en Render para secretos
-DATABASE_URL = os.getenv("DATABASE_URL")  # Se obtiene la URL de la base de datos desde una variable de entorno
+# Obtener la URL de la base de datos desde las variables de entorno
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Inicializa Firebase con las credenciales desde el archivo secreto en Render
+# Inicializar Firebase con las credenciales del archivo secreto
 cred = credentials.Certificate(CREDENTIALS_PATH)
 firebase_admin.initialize_app(cred, {"databaseURL": DATABASE_URL})
 
