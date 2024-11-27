@@ -7,6 +7,7 @@ from datetime import datetime
 import ubicaciones  # Importar funciones de ubicaciones.py
 import os
 import asyncio
+from twilio.rest import Client  # Importar cliente de Twilio
 
 # Crear configuración de Firebase desde variables de entorno
 firebase_config = {
@@ -23,7 +24,12 @@ firebase_config = {
 }
 
 # Verificar si todas las variables de entorno están configuradas
-required_env_vars = ["PROJECT_ID", "PRIVATE_KEY_ID", "PRIVATE_KEY", "CLIENT_EMAIL", "CLIENT_ID", "AUTH_URI", "TOKEN_URI", "AUTH_PROVIDER_X509_CERT_URL", "CLIENT_X509_CERT_URL", "DATABASE_URL"]
+required_env_vars = [
+    "PROJECT_ID", "PRIVATE_KEY_ID", "PRIVATE_KEY", "CLIENT_EMAIL", "CLIENT_ID", "AUTH_URI",
+    "TOKEN_URI", "AUTH_PROVIDER_X509_CERT_URL", "CLIENT_X509_CERT_URL", "DATABASE_URL",
+    "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"
+]
+
 for var in required_env_vars:
     if not os.getenv(var):
         raise ValueError(f"La variable de entorno {var} no está configurada correctamente.")
@@ -31,6 +37,9 @@ for var in required_env_vars:
 # Inicializar Firebase con la configuración de las credenciales
 cred = credentials.Certificate(firebase_config)
 firebase_admin.initialize_app(cred, {"databaseURL": os.getenv("DATABASE_URL")})
+
+# Inicializar el cliente de Twilio
+twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 app = Flask(__name__)
 app.config['CACHE_TYPE'] = 'SimpleCache'
