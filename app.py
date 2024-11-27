@@ -54,93 +54,106 @@ async def guardar_en_firebase_async(clave_pedido, datos):
 
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp_bot():
-    incoming_msg = request.form.get('Body').strip().lower()
-    from_number = request.form.get('From')
-    response = MessagingResponse()
-    msg = response.message()
+    try:
+        # Depuración: imprime los datos que llegan
+        print("Datos recibidos:", request.form)
 
-    # Generar clave única basada en tiempo
-    clave_pedido = f"{from_number}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Asegúrate de que 'Body' esté presente en los datos de la solicitud
+        incoming_msg = request.form.get('Body', '').strip().lower() if request.form.get('Body') else ''
+        if not incoming_msg:
+            return "No se recibió un mensaje válido", 400  # Maneja el caso en que no se reciba un mensaje
 
-    # Si es un nuevo cliente
-    if from_number not in pedidos:
-        pedidos[from_number] = {"estado": "esperando_pedido"}  # Inicializa el pedido
-        msg.body("¡Hola! Bienvenido a Henry's Pizzas. ¿Qué pizza deseas ordenar?\n"
-                 "1. Pizza Hawaiana\n"
-                 "2. Pizza Pepperoni\n"
-                 "3. Pizza Vegetariana\n"
-                 "Responde con el número correspondiente.")
-    else:
-        estado = pedidos[from_number]["estado"]
+        from_number = request.form.get('From')
+        response = MessagingResponse()
+        msg = response.message()
 
-        if estado == "esperando_pedido":
-            if incoming_msg in ["1", "2", "3"]:
-                opciones_pizza = {
-                    "1": "Pizza Hawaiana",
-                    "2": "Pizza Pepperoni",
-                    "3": "Pizza Vegetariana"
-                }
-                pedidos[from_number]["pedido"] = opciones_pizza[incoming_msg]
-                pedidos[from_number]["estado"] = "esperando_nombre"
-                msg.body(f"Has elegido: {opciones_pizza[incoming_msg]}.\n"
-                         "Ahora, por favor indícanos tu nombre completo.")
-            else:
-                msg.body("Por favor, selecciona una opción válida:\n1. Hawaiana\n2. Pepperoni\n3. Vegetariana.")
+        # Generar clave única basada en tiempo
+        clave_pedido = f"{from_number}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-        elif estado == "esperando_nombre":
-            pedidos[from_number]["nombre"] = incoming_msg
-            pedidos[from_number]["estado"] = "esperando_direccion"
-            msg.body("Gracias. Ahora, por favor indícanos tu dirección completa (incluye municipio).")
+        # Si es un nuevo cliente
+        if from_number not in pedidos:
+            pedidos[from_number] = {"estado": "esperando_pedido"}  # Inicializa el pedido
+            msg.body("¡Hola! Bienvenido a Henry's Pizzas. ¿Qué pizza deseas ordenar?\n"
+                     "1. Pizza Hawaiana\n"
+                     "2. Pizza Pepperoni\n"
+                     "3. Pizza Vegetariana\n"
+                     "Responde con el número correspondiente.")
+        else:
+            estado = pedidos[from_number]["estado"]
 
-        elif estado == "esperando_direccion":
-            direccion = incoming_msg
-            coordenadas = cache.get(direccion)
-
-            if not coordenadas:
-                coordenadas = ubicaciones.geocodificar_direccion(direccion)
-                if coordenadas:
-                    cache.set(direccion, coordenadas)
-
-            if coordenadas:
-                lat, lng = coordenadas
-                sucursal = ubicaciones.asignar_sucursal(lat, lng)
-                if sucursal:
-                    pedidos[from_number]["direccion"] = direccion
-                    pedidos[from_number]["sucursal"] = sucursal
-                    pedidos[from_number]["estado"] = "esperando_referencias"
-                    msg.body(f"Tu dirección pertenece a {sucursal}.\n"
-                             "Si deseas, agrega referencias adicionales para facilitar la entrega (ejemplo: 'junto a la tienda X').\n"
-                             "Si no tienes referencias, escribe 'Sin referencias'.")
+            if estado == "esperando_pedido":
+                if incoming_msg in ["1", "2", "3"]:
+                    opciones_pizza = {
+                        "1": "Pizza Hawaiana",
+                        "2": "Pizza Pepperoni",
+                        "3": "Pizza Vegetariana"
+                    }
+                    pedidos[from_number]["pedido"] = opciones_pizza[incoming_msg]
+                    pedidos[from_number]["estado"] = "esperando_nombre"
+                    msg.body(f"Has elegido: {opciones_pizza[incoming_msg]}.\n"
+                             "Ahora, por favor indícanos tu nombre completo.")
                 else:
-                    msg.body("Lo siento, no encontramos una sucursal que atienda esa ubicación. Por favor verifica la dirección.")
-            else:
-                msg.body("No pude encontrar tu dirección en el mapa. Por favor verifica e ingrésala nuevamente (incluye municipio).")
+                    msg.body("Por favor, selecciona una opción válida:\n1. Hawaiana\n2. Pepperoni\n3. Vegetariana.")
 
-        elif estado == "esperando_referencias":
-            referencias = incoming_msg
-            pedidos[from_number]["referencias"] = referencias
-            pedidos[from_number]["estado"] = "confirmacion"
-            msg.body(f"Por favor confirma tu pedido:\n"
-                     f"- Pedido: {pedidos[from_number]['pedido']}\n"
-                     f"- Nombre: {pedidos[from_number]['nombre']}\n"
-                     f"- Dirección: {pedidos[from_number]['direccion']}\n"
-                     f"- Referencias: {referencias}\n"
-                     "¿Es correcto? Responde 'Sí' o 'No'.")
-
-        elif estado == "confirmacion":
-            if es_respuesta_afirmativa(incoming_msg):
-                msg.body("¡Gracias! Tu pedido ha sido confirmado y será preparado pronto. 😊")
-                
-                # Ejecutar escritura asincrónica en Firebase
-                asyncio.run(guardar_en_firebase_async(clave_pedido, pedidos[from_number]))
-                
-                # Limpia el estado del pedido
-                del pedidos[from_number]
-            else:
+            elif estado == "esperando_nombre":
+                pedidos[from_number]["nombre"] = incoming_msg
                 pedidos[from_number]["estado"] = "esperando_direccion"
-                msg.body("Por favor, indícanos nuevamente tu dirección.")
+                msg.body("Gracias. Ahora, por favor indícanos tu dirección completa (incluye municipio).")
 
-    return str(response)
+            elif estado == "esperando_direccion":
+                direccion = incoming_msg
+                coordenadas = cache.get(direccion)
+
+                if not coordenadas:
+                    coordenadas = ubicaciones.geocodificar_direccion(direccion)
+                    if coordenadas:
+                        cache.set(direccion, coordenadas)
+
+                if coordenadas:
+                    lat, lng = coordenadas
+                    sucursal = ubicaciones.asignar_sucursal(lat, lng)
+                    if sucursal:
+                        pedidos[from_number]["direccion"] = direccion
+                        pedidos[from_number]["sucursal"] = sucursal
+                        pedidos[from_number]["estado"] = "esperando_referencias"
+                        msg.body(f"Tu dirección pertenece a {sucursal}.\n"
+                                 "Si deseas, agrega referencias adicionales para facilitar la entrega (ejemplo: 'junto a la tienda X').\n"
+                                 "Si no tienes referencias, escribe 'Sin referencias'.")
+                    else:
+                        msg.body("Lo siento, no encontramos una sucursal que atienda esa ubicación. Por favor verifica la dirección.")
+                else:
+                    msg.body("No pude encontrar tu dirección en el mapa. Por favor verifica e ingrésala nuevamente (incluye municipio).")
+
+            elif estado == "esperando_referencias":
+                referencias = incoming_msg
+                pedidos[from_number]["referencias"] = referencias
+                pedidos[from_number]["estado"] = "confirmacion"
+                msg.body(f"Por favor confirma tu pedido:\n"
+                         f"- Pedido: {pedidos[from_number]['pedido']}\n"
+                         f"- Nombre: {pedidos[from_number]['nombre']}\n"
+                         f"- Dirección: {pedidos[from_number]['direccion']}\n"
+                         f"- Referencias: {referencias}\n"
+                         "¿Es correcto? Responde 'Sí' o 'No'.")
+
+            elif estado == "confirmacion":
+                if es_respuesta_afirmativa(incoming_msg):
+                    msg.body("¡Gracias! Tu pedido ha sido confirmado y será preparado pronto. 😊")
+                    
+                    # Ejecutar escritura asincrónica en Firebase
+                    asyncio.run(guardar_en_firebase_async(clave_pedido, pedidos[from_number]))
+                    
+                    # Limpia el estado del pedido
+                    del pedidos[from_number]
+                else:
+                    pedidos[from_number]["estado"] = "esperando_direccion"
+                    msg.body("Por favor, indícanos nuevamente tu dirección.")
+
+        return str(response)
+
+    except Exception as e:
+        print(f"Error en el procesamiento del mensaje: {e}")
+        return "Error interno del servidor", 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
