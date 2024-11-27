@@ -8,15 +8,23 @@ import ubicaciones  # Importar funciones de ubicaciones.py
 import os
 import asyncio
 
-# Ruta al archivo secreto en Render
-CREDENTIALS_PATH = "/etc/secrets/bdpedidos-4a3df-firebases-adminsdk-vpox8-26f56219dc.json"
+# Crear configuración de Firebase desde variables de entorno
+firebase_config = {
+    "type": "service_account",
+    "project_id": os.getenv("PROJECT_ID"),
+    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+    "private_key": os.getenv("PRIVATE_KEY").replace("\\n", "\n"),  # Reemplazar saltos de línea
+    "client_email": os.getenv("CLIENT_EMAIL"),
+    "client_id": os.getenv("CLIENT_ID"),
+    "auth_uri": os.getenv("AUTH_URI"),
+    "token_uri": os.getenv("TOKEN_URI"),
+    "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL"),
+}
 
-# Obtener la URL de la base de datos desde las variables de entorno
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Inicializar Firebase con las credenciales del archivo secreto
-cred = credentials.Certificate(CREDENTIALS_PATH)
-firebase_admin.initialize_app(cred, {"databaseURL": DATABASE_URL})
+# Inicializar Firebase
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred, {"databaseURL": os.getenv("DATABASE_URL")})
 
 app = Flask(__name__)
 app.config['CACHE_TYPE'] = 'SimpleCache'
