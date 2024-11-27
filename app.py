@@ -22,7 +22,13 @@ firebase_config = {
     "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL"),
 }
 
-# Inicializar Firebase
+# Verificar si todas las variables de entorno están configuradas
+required_env_vars = ["PROJECT_ID", "PRIVATE_KEY_ID", "PRIVATE_KEY", "CLIENT_EMAIL", "CLIENT_ID", "AUTH_URI", "TOKEN_URI", "AUTH_PROVIDER_X509_CERT_URL", "CLIENT_X509_CERT_URL", "DATABASE_URL"]
+for var in required_env_vars:
+    if not os.getenv(var):
+        raise ValueError(f"La variable de entorno {var} no está configurada correctamente.")
+
+# Inicializar Firebase con la configuración de las credenciales
 cred = credentials.Certificate(firebase_config)
 firebase_admin.initialize_app(cred, {"databaseURL": os.getenv("DATABASE_URL")})
 
