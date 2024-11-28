@@ -41,12 +41,15 @@ firebase_admin.initialize_app(cred, {"databaseURL": os.getenv("DATABASE_URL")})
 # Inicializar el cliente de Twilio
 twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
-@app.route('/test', methods=['GET'])
-def test():
-    return "Flask está funcionando correctamente en Vercel!"
+
 
 
 app = Flask(__name__)
+
+@app.route('/test', methods=['GET'])
+def test():
+    return "Flask está funcionando correctamente en Vercel!"
+    
 app.config['CACHE_TYPE'] = 'SimpleCache'
 cache = Cache(app)
 
