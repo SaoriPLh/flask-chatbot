@@ -2,14 +2,20 @@
     "version": 2,
     "builds": [
       {
-        "src": "app.py",  
+        "src": "app.py",
         "use": "@vercel/python"
       }
     ],
     "routes": [
       {
         "src": "/whatsapp",
-        "dest": "/app.py" 
+        "methods": ["POST"],
+        "dest": "/app.py"
+      },
+      {
+        "src": "/test",
+        "methods": ["GET"],
+        "dest": "/app.py"
       }
     ]
   }
