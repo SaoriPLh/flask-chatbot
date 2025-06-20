@@ -75,7 +75,7 @@ def whatsapp_bot():
         # Depuración: imprime los datos que llegan
         print("Datos recibidos:", request.form)
 
-        # Asegúrate de que 'Body' esté presente en los datos de la solicitud
+     
         incoming_msg = request.form.get('Body', '').strip().lower() if request.form.get('Body') else ''
         if not incoming_msg:
             return "No se recibió un mensaje válido", 400  # Maneja el caso en que no se reciba un mensaje
